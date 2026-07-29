@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Mapa interactivo de interconexiones entre sectores del sistema."
+    >
+    <title>Interconexiones del sistema</title>
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#info-panel">Ir al detalle del sector</a>
+
+    <div class="app-shell">
+      <header class="site-header">
+        <div class="title-group">
+          <p class="eyebrow">Mapa del sistema</p>
+          <h1>Interconexiones entre sectores</h1>
+          <p class="intro">
+            Explorá qué recibe y qué entrega cada sector. Las flechas toman el
+            color de su origen y señalan un único destino.
+          </p>
+        </div>
+
+        <div class="header-actions" aria-label="Controles del mapa">
+          <button
+            class="control-button"
+            id="presentation-button"
+            type="button"
+            aria-pressed="false"
+            aria-label="Activar modo presentación"
+            title="Activar modo presentación (P)"
+          >
+            <span aria-hidden="true">⛶</span>
+            <span class="control-button__label">Modo presentación</span>
+          </button>
+          <button class="control-button" id="reset-button" type="button">
+            <span aria-hidden="true">↺</span>
+            Restablecer mapa
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="map-card" aria-labelledby="map-title">
+          <div class="map-card__header">
+            <div>
+              <h2 id="map-title">Mapa de relaciones</h2>
+              <p id="map-status" aria-live="polite">Seleccioná un sector</p>
+            </div>
+            <div class="map-key" aria-label="Leyenda">
+              <span><i class="key-line" aria-hidden="true"></i> Origen</span>
+              <span><i class="key-arrow" aria-hidden="true">→</i> Destino</span>
+            </div>
+          </div>
+
+          <div class="map-viewport" id="map-viewport">
+            <div class="map-stage" id="map-stage">
+              <svg
+                class="connections"
+                id="connections"
+                aria-hidden="true"
+                focusable="false"
+              ></svg>
+              <div class="flow-labels" id="flow-labels" aria-hidden="true"></div>
+              <div class="departments" id="departments"></div>
+              <p class="map-prompt" id="map-prompt">
+                <span aria-hidden="true">↗</span>
+                Seleccioná un sector para explorar sus conexiones
+              </p>
+            </div>
+          </div>
+
+          <p class="keyboard-help">
+            <strong>Teclado:</strong> ← y → recorren sectores · Enter selecciona ·
+            Esc restablece · P activa el modo presentación
+          </p>
+        </section>
+
+        <aside class="info-panel" id="info-panel" tabindex="-1">
+          <button
+            class="info-toggle"
+            id="info-toggle"
+            type="button"
+            aria-controls="info-content"
+            aria-expanded="true"
+            aria-label="Cerrar panel informativo"
+            title="Cerrar panel informativo"
+          >
+            <span aria-hidden="true">»</span>
+          </button>
+          <div id="info-content" aria-live="polite"></div>
+        </aside>
+      </main>
+    </div>
+
+    <script src="js/departments.js"></script>
+    <script src="js/resources.js"></script>
+    <script src="js/flows.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
