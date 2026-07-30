@@ -293,6 +293,59 @@ body.is-presentation .info-panel {
   height: 100%;
 }
 
+.flow-filter {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 20;
+  display: inline-flex;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #d5ddea;
+  border-radius: 999px;
+  box-shadow: 0 8px 22px rgba(25, 46, 89, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+.flow-filter__button {
+  min-height: 34px;
+  padding: 7px 12px;
+  color: #66758d;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 760;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.flow-filter__button:hover:not(:disabled) {
+  color: #123b9b;
+}
+
+.flow-filter__button.is-active {
+  color: #ffffff;
+  background: #123b9b;
+  box-shadow: 0 5px 13px rgba(18, 59, 155, 0.24);
+}
+
+.flow-filter__button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(18, 59, 155, 0.35);
+  outline-offset: 2px;
+}
+
+.flow-filter__button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
 .connections {
   z-index: 2;
   pointer-events: none;
@@ -375,6 +428,43 @@ body.is-presentation .info-panel {
     0 0 0 6px color-mix(in srgb, var(--department-color) 8%, transparent);
   filter: saturate(1.12);
   transform: translate(-50%, -50%) scale(1.115);
+  animation: selected-glow 2600ms ease-in-out infinite;
+}
+
+.department.is-selected::after {
+  position: absolute;
+  inset: -7px;
+  border: 2px solid color-mix(in srgb, var(--department-color) 62%, white);
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+  animation: selected-ring 2600ms ease-in-out infinite;
+}
+
+@keyframes selected-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 18px 38px color-mix(in srgb, var(--department-color) 22%, transparent),
+      0 0 0 6px color-mix(in srgb, var(--department-color) 9%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 18px 38px color-mix(in srgb, var(--department-color) 30%, transparent),
+      0 0 0 13px color-mix(in srgb, var(--department-color) 4%, transparent);
+  }
+}
+
+@keyframes selected-ring {
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(1.05);
+  }
 }
 
 .department.is-related {
@@ -831,6 +921,11 @@ body.is-presentation .info-panel {
     grid-template-columns: minmax(220px, 0.85fr) 1fr 1fr;
     gap: 18px;
     align-items: start;
+  }
+
+  #info-content.has-selection.flow-mode-incoming,
+  #info-content.has-selection.flow-mode-outgoing {
+    grid-template-columns: minmax(220px, 0.85fr) minmax(0, 1.7fr);
   }
 
   #info-content.has-selection .info-summary {

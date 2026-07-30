@@ -58,6 +58,43 @@
 
           <div class="map-viewport" id="map-viewport">
             <div class="map-stage" id="map-stage">
+              <div
+                class="flow-filter"
+                id="flow-filter"
+                role="group"
+                aria-label="Filtrar conexiones del sector seleccionado"
+              >
+                <button
+                  class="flow-filter__button is-active"
+                  type="button"
+                  data-flow-mode="all"
+                  aria-pressed="true"
+                  aria-label="Mostrar todas las conexiones del sector"
+                  disabled
+                >
+                  Todas
+                </button>
+                <button
+                  class="flow-filter__button"
+                  type="button"
+                  data-flow-mode="incoming"
+                  aria-pressed="false"
+                  aria-label="Mostrar solamente lo que recibe el sector"
+                  disabled
+                >
+                  Recibe
+                </button>
+                <button
+                  class="flow-filter__button"
+                  type="button"
+                  data-flow-mode="outgoing"
+                  aria-pressed="false"
+                  aria-label="Mostrar solamente lo que entrega el sector"
+                  disabled
+                >
+                  Entrega
+                </button>
+              </div>
               <svg
                 class="connections"
                 id="connections"

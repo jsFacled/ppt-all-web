@@ -3,6 +3,7 @@
 
   const SVG_NS = "http://www.w3.org/2000/svg";
   const SIDES = new Set(["top", "right", "bottom", "left"]);
+  const FLOW_MODES = new Set(["all", "incoming", "outgoing"]);
   const departmentIds = Object.keys(DEPARTMENTS);
   const flowGroups =
     typeof FLOW_GROUPS === "undefined" ? {} : FLOW_GROUPS;
@@ -12,6 +13,9 @@
     svg: document.getElementById("connections"),
     labels: document.getElementById("flow-labels"),
     departments: document.getElementById("departments"),
+    flowFilterButtons: Array.from(
+      document.querySelectorAll("[data-flow-mode]")
+    ),
     prompt: document.getElementById("map-prompt"),
     status: document.getElementById("map-status"),
     presentation: document.getElementById("presentation-button"),
@@ -23,9 +27,22 @@
   };
 
   let selectedDepartment = null;
+  let flowMode = "all";
   let isInfoPanelOpen = true;
   let isPresentationMode = false;
   let redrawTimer = null;
+
+  function isValidPercentagePoint(point) {
+    return (
+      point &&
+      Number.isFinite(point.x) &&
+      Number.isFinite(point.y) &&
+      point.x >= 0 &&
+      point.x <= 100 &&
+      point.y >= 0 &&
+      point.y <= 100
+    );
+  }
 
   function validateData() {
     const errors = [];
@@ -112,6 +129,16 @@
             "El flujo " + reference + " tiene puntos manuales inválidos."
           );
         }
+        ["startOffset", "endOffset"].forEach(function (key) {
+          if (
+            flow.route[key] !== undefined &&
+            !Number.isFinite(flow.route[key])
+          ) {
+            errors.push(
+              "El flujo " + reference + " tiene un " + key + " inválido."
+            );
+          }
+        });
         (flow.route.points || []).forEach(function (point, pointIndex) {
           const validPoint =
             point &&
@@ -190,18 +217,21 @@
       if (group.distribution) {
         const junction = group.distribution.junction;
         if (
-          !junction ||
-          !Number.isFinite(junction.x) ||
-          !Number.isFinite(junction.y) ||
-          junction.x < 0 ||
-          junction.x > 100 ||
-          junction.y < 0 ||
-          junction.y > 100 ||
+          !isValidPercentagePoint(junction) ||
           (group.distribution.startSide &&
             !SIDES.has(group.distribution.startSide))
         ) {
           errors.push(
             'El grupo visual "' + groupId + '" tiene un distribuidor inválido.'
+          );
+        }
+        if (
+          group.distribution.spine &&
+          (!isValidPercentagePoint(group.distribution.spine.from) ||
+            !isValidPercentagePoint(group.distribution.spine.to))
+        ) {
+          errors.push(
+            'El grupo visual "' + groupId + '" tiene una barra distribuidora inválida.'
           );
         }
       }
@@ -214,7 +244,9 @@
         }
         if (
           (branchRoute.startSide && !SIDES.has(branchRoute.startSide)) ||
-          (branchRoute.endSide && !SIDES.has(branchRoute.endSide))
+          (branchRoute.endSide && !SIDES.has(branchRoute.endSide)) ||
+          (branchRoute.start &&
+            !isValidPercentagePoint(branchRoute.start))
         ) {
           errors.push(
             'La ruta del flujo "' + flowId + '" dentro del grupo visual es inválida.'
@@ -260,9 +292,21 @@
     });
   }
 
+  function getVisibleFlowsFor(departmentId) {
+    return getFlowsFor(departmentId).filter(function (flow) {
+      if (flowMode === "incoming") {
+        return flow.to === departmentId;
+      }
+      if (flowMode === "outgoing") {
+        return flow.from === departmentId;
+      }
+      return true;
+    });
+  }
+
   function getRelatedDepartments(departmentId) {
     const related = new Set();
-    getFlowsFor(departmentId).forEach(function (flow) {
+    getVisibleFlowsFor(departmentId).forEach(function (flow) {
       related.add(flow.from === departmentId ? flow.to : flow.from);
     });
     return related;
@@ -390,6 +434,25 @@
     return { x: box.x - box.width / 2, y: box.y };
   }
 
+  function offsetAlongSide(point, box, side, offset) {
+    const amount = Number(offset) || 0;
+
+    if (!amount) {
+      return point;
+    }
+
+    const isHorizontalSide = side === "left" || side === "right";
+    const limit = Math.max(
+      0,
+      (isHorizontalSide ? box.height : box.width) / 2 - 8
+    );
+    const clamped = Math.max(-limit, Math.min(limit, amount));
+
+    return isHorizontalSide
+      ? { x: point.x, y: point.y + clamped }
+      : { x: point.x + clamped, y: point.y };
+  }
+
   function getSideVector(side) {
     if (side === "top") {
       return { x: 0, y: -1 };
@@ -465,8 +528,18 @@
     const route = routeOptions.route || flow.route || {};
     const startSide = route.startSide || inferred.startSide;
     const endSide = route.endSide || inferred.endSide;
-    const start = getAnchor(fromBox, startSide);
-    const end = getAnchor(toBox, endSide);
+    const start = offsetAlongSide(
+      getAnchor(fromBox, startSide),
+      fromBox,
+      startSide,
+      route.startOffset
+    );
+    const end = offsetAlongSide(
+      getAnchor(toBox, endSide),
+      toBox,
+      endSide,
+      route.endOffset
+    );
     const startVector = getSideVector(startSide);
     const endVector = getSideVector(endSide);
     const spacing = Number.isFinite(route.spacing) ? route.spacing : 14;
@@ -521,21 +594,27 @@
 
   function getDirectBranchRoute(flow, startPoint, route) {
     const branchRoute = route || {};
+    const resolvedStart = branchRoute.start
+      ? percentagePoint(branchRoute.start)
+      : startPoint;
     const targetBox = getDepartmentBox(flow.to);
     const startBox = {
-      x: startPoint.x,
-      y: startPoint.y,
+      x: resolvedStart.x,
+      y: resolvedStart.y,
       width: 0,
       height: 0
     };
     const inferred = inferSides(startBox, targetBox);
-    const end = getAnchor(
+    const endSide = branchRoute.endSide || inferred.endSide;
+    const end = offsetAlongSide(
+      getAnchor(targetBox, endSide),
       targetBox,
-      branchRoute.endSide || inferred.endSide
+      endSide,
+      branchRoute.endOffset
     );
     const points = [];
 
-    addPoint(points, startPoint);
+    addPoint(points, resolvedStart);
     (branchRoute.points || []).forEach(function (point) {
       addPoint(points, percentagePoint(point));
     });
@@ -710,7 +789,7 @@
       return;
     }
 
-    const visibleFlows = getFlowsFor(selectedDepartment);
+    const visibleFlows = getVisibleFlowsFor(selectedDepartment);
     const activeGroups = getActiveFlowGroups(
       selectedDepartment,
       visibleFlows
@@ -751,6 +830,22 @@
           false
         );
         pathIndex += 1;
+
+        if (group.distribution.spine) {
+          const spineStart = percentagePoint(
+            group.distribution.spine.from
+          );
+          const spineEnd = percentagePoint(
+            group.distribution.spine.to
+          );
+          appendConnectionPath(
+            trunkFlow,
+            { points: [spineStart, spineEnd], end: spineEnd },
+            pathIndex,
+            false
+          );
+          pathIndex += 1;
+        }
 
         groupFlows.forEach(function (flow) {
           groupedFlowIds.add(flow.id);
@@ -947,6 +1042,8 @@
       selectedDepartment,
       outgoing
     );
+    const visibleFlows = getVisibleFlowsFor(selectedDepartment);
+    const sections = [];
     const summary = document.createElement("div");
     const eyebrow = document.createElement("p");
     const title = document.createElement("h2");
@@ -954,7 +1051,8 @@
     const total = document.createElement("p");
     const note = document.createElement("p");
 
-    elements.info.className = "has-selection";
+    elements.info.className =
+      "has-selection flow-mode-" + flowMode;
     elements.info.style.setProperty("--panel-color", department.color);
     summary.className = "info-summary";
     eyebrow.className = "info-panel__eyebrow";
@@ -962,12 +1060,15 @@
     title.textContent = department.name;
     intro.className = "info-panel__intro";
     intro.textContent =
-      "Se muestran únicamente las relaciones entrantes y salientes vinculadas con este sector.";
+      flowMode === "incoming"
+        ? "Se muestran únicamente los insumos que recibe este sector."
+        : flowMode === "outgoing"
+          ? "Se muestran únicamente los resultados que entrega este sector."
+          : "Se muestran las relaciones entrantes y salientes vinculadas con este sector.";
     total.className = "connection-total";
     total.textContent =
-      incoming.length +
-      outgoing.length +
-      (incoming.length + outgoing.length === 1
+      visibleFlows.length +
+      (visibleFlows.length === 1
         ? " conexión asociada"
         : " conexiones asociadas");
     note.className = "panel-note";
@@ -980,16 +1081,21 @@
     summary.appendChild(total);
     summary.appendChild(note);
 
-    elements.info.replaceChildren(
-      summary,
-      createInfoSection("Recibe insumos de", incoming, "incoming"),
-      createInfoSection(
+    if (flowMode !== "outgoing") {
+      sections.push(
+        createInfoSection("Recibe insumos de", incoming, "incoming")
+      );
+    }
+    if (flowMode !== "incoming") {
+      sections.push(createInfoSection(
         "Entrega resultados a",
         outgoing,
         "outgoing",
         outgoingGroups
-      )
-    );
+      ));
+    }
+
+    elements.info.replaceChildren(summary, ...sections);
   }
 
   function renderInfo() {
@@ -1003,17 +1109,49 @@
   function updateTextState() {
     if (selectedDepartment) {
       const department = DEPARTMENTS[selectedDepartment];
-      const count = getFlowsFor(selectedDepartment).length;
+      const count = getVisibleFlowsFor(selectedDepartment).length;
+      const modeLabel =
+        flowMode === "incoming"
+          ? "recibidas"
+          : flowMode === "outgoing"
+            ? "entregadas"
+            : "visibles";
       elements.status.textContent =
         department.name +
         " · " +
         count +
-        (count === 1 ? " conexión visible" : " conexiones visibles");
+        (count === 1
+          ? " conexión " + modeLabel.replace(/s$/, "")
+          : " conexiones " + modeLabel);
       elements.prompt.classList.add("is-hidden");
     } else {
       elements.status.textContent = "Seleccioná un sector";
       elements.prompt.classList.remove("is-hidden");
     }
+  }
+
+  function updateFlowFilterState() {
+    elements.flowFilterButtons.forEach(function (button) {
+      const isActive = button.dataset.flowMode === flowMode;
+      button.disabled = !selectedDepartment;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute(
+        "aria-pressed",
+        isActive ? "true" : "false"
+      );
+    });
+  }
+
+  function setFlowMode(mode) {
+    if (!FLOW_MODES.has(mode) || !selectedDepartment) {
+      return;
+    }
+    flowMode = mode;
+    updateFlowFilterState();
+    updateDepartmentStates();
+    updateTextState();
+    renderInfo();
+    scheduleConnectionRender();
   }
 
   function scheduleConnectionRender() {
@@ -1027,6 +1165,7 @@
       return;
     }
     selectedDepartment = id;
+    updateFlowFilterState();
     updateDepartmentStates();
     updateTextState();
     renderInfo();
@@ -1035,6 +1174,8 @@
 
   function resetMap() {
     selectedDepartment = null;
+    flowMode = "all";
+    updateFlowFilterState();
     updateDepartmentStates();
     updateTextState();
     renderInfo();
@@ -1127,6 +1268,7 @@
     }
 
     createDepartments();
+    updateFlowFilterState();
     updateDepartmentStates();
     updateTextState();
     renderInfo();
@@ -1138,6 +1280,11 @@
       "click",
       togglePresentationMode
     );
+    elements.flowFilterButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        setFlowMode(button.dataset.flowMode);
+      });
+    });
     elements.reset.addEventListener("click", resetMap);
     elements.infoToggle.addEventListener("click", toggleInfoPanel);
     elements.infoPanel.addEventListener("focus", function () {

@@ -16,7 +16,9 @@
 - [ ] Revisar Tecnología / IT / Data.
 - [ ] Revisar al menos un sector lateral y Back Office.
 - [ ] Confirmar que ninguna flecha atraviese un sector.
-- [ ] Confirmar que las etiquetas principales sean legibles.
+- [ ] Confirmar que las etiquetas principales sean legibles y no se pisen.
+- [ ] Verificar que el sector seleccionado muestre el pulso en el borde.
+- [ ] Probar Todas, Recibe y Entrega, y confirmar que el filtro persista al cambiar de sector.
 - [ ] Abrir y cerrar el panel informativo.
 - [ ] Activar y desactivar el modo presentación con el botón y con `P`.
 

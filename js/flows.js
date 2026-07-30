@@ -5,7 +5,7 @@ const FLOWS = [
     to: "direccion",
     resources: ["estadoConsolidadoAvance", "riesgosEscalados"],
     route: { startSide: "bottom", endSide: "top" },
-    label: { position: "near-target", offsetX: 108, offsetY: -4 }
+    label: { position: "near-target", offsetX: -180, offsetY: 5 }
   },
   {
     id: "direccion-rrhh",
@@ -125,11 +125,12 @@ const FLOWS = [
     to: "direccion",
     resources: ["reportesAdopcion", "clima"],
     route: {
-      startSide: "left",
+      startSide: "top",
+      startOffset: -50,
       endSide: "left",
-      points: [{ x: 6, y: 42 }, { x: 6, y: 18 }, { x: 39, y: 18 }, { x: 39, y: 22 }]
+      endOffset: 26
     },
-    label: { position: "near-target", offsetX: -4, offsetY: -40 }
+    label: { position: "near-target", offsetX: -18, offsetY: -46 }
   },
   {
     id: "tecnologia-compliance",
@@ -176,8 +177,13 @@ const FLOWS = [
     from: "compliance",
     to: "direccion",
     resources: ["riesgoRegulatorio"],
-    route: { startSide: "top", endSide: "bottom" },
-    label: { position: "near-target", offsetX: 102, offsetY: 0 }
+    route: {
+      startSide: "top",
+      startOffset: 50,
+      endSide: "right",
+      endOffset: 27
+    },
+    label: { position: "near-target", offsetX: 120, offsetY: 30 }
   },
   {
     id: "research-tecnologia",
@@ -247,9 +253,10 @@ const FLOWS = [
     route: {
       startSide: "right",
       endSide: "right",
-      points: [{ x: 97, y: 72 }, { x: 97, y: 22 }]
+      endOffset: -27,
+      points: [{ x: 97, y: 72 }, { x: 97, y: 18 }]
     },
-    label: { position: "near-target", offsetX: 7, offsetY: 43 }
+    label: { position: "near-target", offsetX: 133, offsetY: -43 }
   },
   {
     id: "backoffice-comercial",
@@ -277,27 +284,35 @@ const FLOW_GROUPS = {
     route: { startSide: "bottom", endSide: "top", spacing: 3 },
     distribution: {
       junction: { x: 50, y: 39 },
-      startSide: "bottom"
+      startSide: "bottom",
+      spine: {
+        from: { x: 36, y: 39 },
+        to: { x: 64, y: 39 }
+      }
     },
     branchRoutes: {
       "direccion-rrhh": {
+        start: { x: 36, y: 39 },
         endSide: "right"
       },
       "direccion-compliance": {
+        start: { x: 64, y: 39 },
         endSide: "left"
       },
       "direccion-tecnologia": {
+        start: { x: 50, y: 39 },
         endSide: "top"
       },
       "direccion-research": {
-        endSide: "top",
-        points: [{ x: 38, y: 39 }]
+        start: { x: 36, y: 39 },
+        endSide: "top"
       },
       "direccion-comercial": {
-        endSide: "top",
-        points: [{ x: 62, y: 39 }]
+        start: { x: 64, y: 39 },
+        endSide: "top"
       },
       "direccion-backoffice": {
+        start: { x: 38, y: 39 },
         endSide: "left",
         points: [
           { x: 38, y: 39 },
