@@ -1,0 +1,24 @@
+.tipo-contenido {
+  min-height: min(720px, calc(100vh - 190px));
+  padding: clamp(28px, 6vw, 72px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+}
+
+.tipo-contenido h2 {
+  max-width: 980px;
+  margin-bottom: 24px;
+  color: #14285b;
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  line-height: 1;
+}
+
+.tipo-contenido p,
+.tipo-contenido li {
+  max-width: 900px;
+  color: #526079;
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  line-height: 1.6;
+}

@@ -1,1 +1,3 @@
 ppt-all-web-bundle.txt
+output/playwright/
+.playwright-cli/

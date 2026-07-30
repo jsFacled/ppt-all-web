@@ -5,137 +5,106 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       name="description"
-      content="Mapa interactivo de interconexiones entre sectores del sistema."
+      content="Motor de presentaciones estático con contenidos interactivos."
     >
-    <title>Interconexiones del sistema</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>Presentación</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="css/nucleo/base.css">
+    <link rel="stylesheet" href="css/nucleo/marco.css">
+    <link rel="stylesheet" href="css/nucleo/indice.css">
+    <link rel="stylesheet" href="css/tipos/portada.css">
+    <link rel="stylesheet" href="css/tipos/contenido.css">
+    <link rel="stylesheet" href="css/diapositivas/interconexiones.css">
   </head>
   <body>
-    <a class="skip-link" href="#info-panel">Ir al detalle del sector</a>
+    <a class="presentacion-salto" href="#presentacion-escenario">
+      Ir al contenido de la diapositiva
+    </a>
 
-    <div class="app-shell">
-      <header class="site-header">
-        <div class="title-group">
-          <p class="eyebrow">Mapa del sistema</p>
-          <h1>Interconexiones entre sectores</h1>
-          <p class="intro">
-            Explorá qué recibe y qué entrega cada sector. Las flechas toman el
-            color de su origen y señalan un único destino.
+    <div class="presentacion-marco">
+      <header class="presentacion-encabezado">
+        <div class="presentacion-titulos">
+          <p class="presentacion-sobrelinea" id="presentacion-sobrelinea">
+            Presentación
+          </p>
+          <h1 class="presentacion-titulo" id="presentacion-titulo">
+            Índice
+          </h1>
+          <p class="presentacion-bajada" id="presentacion-bajada">
+            Elegí una diapositiva para comenzar.
           </p>
         </div>
 
-        <div class="header-actions" aria-label="Controles del mapa">
+        <div
+          class="presentacion-controles"
+          aria-label="Controles de la presentación"
+        >
           <button
-            class="control-button"
-            id="presentation-button"
+            class="presentacion-control presentacion-control--indice"
+            id="presentacion-boton-indice"
+            type="button"
+            aria-pressed="true"
+            aria-label="Cerrar índice"
+            title="Abrir o cerrar índice (M)"
+          >
+            <span aria-hidden="true">☰</span>
+            <span>Índice</span>
+          </button>
+          <button
+            class="presentacion-control presentacion-control--modo"
+            id="presentacion-boton-modo"
             type="button"
             aria-pressed="false"
             aria-label="Activar modo presentación"
             title="Activar modo presentación (P)"
           >
             <span aria-hidden="true">⛶</span>
-            <span class="control-button__label">Modo presentación</span>
+            <span class="presentacion-control__etiqueta">
+              Modo presentación
+            </span>
           </button>
-          <button class="control-button" id="reset-button" type="button">
-            <span aria-hidden="true">↺</span>
-            Restablecer mapa
-          </button>
+          <div
+            class="presentacion-acciones-contenido"
+            id="presentacion-acciones-contenido"
+          ></div>
         </div>
       </header>
 
-      <main class="workspace">
-        <section class="map-card" aria-labelledby="map-title">
-          <div class="map-card__header">
-            <div>
-              <h2 id="map-title">Mapa de relaciones</h2>
-              <p id="map-status" aria-live="polite">Seleccioná un sector</p>
-            </div>
-            <div class="map-key" aria-label="Leyenda">
-              <span><i class="key-line" aria-hidden="true"></i> Origen</span>
-              <span><i class="key-arrow" aria-hidden="true">→</i> Destino</span>
-            </div>
-          </div>
+      <main
+        class="presentacion-escenario"
+        id="presentacion-escenario"
+        tabindex="-1"
+      ></main>
 
-          <div class="map-viewport" id="map-viewport">
-            <div class="map-stage" id="map-stage">
-              <div
-                class="flow-filter"
-                id="flow-filter"
-                role="group"
-                aria-label="Filtrar conexiones del sector seleccionado"
-              >
-                <button
-                  class="flow-filter__button is-active"
-                  type="button"
-                  data-flow-mode="all"
-                  aria-pressed="true"
-                  aria-label="Mostrar todas las conexiones del sector"
-                  disabled
-                >
-                  Todas
-                </button>
-                <button
-                  class="flow-filter__button"
-                  type="button"
-                  data-flow-mode="incoming"
-                  aria-pressed="false"
-                  aria-label="Mostrar solamente lo que recibe el sector"
-                  disabled
-                >
-                  Recibe
-                </button>
-                <button
-                  class="flow-filter__button"
-                  type="button"
-                  data-flow-mode="outgoing"
-                  aria-pressed="false"
-                  aria-label="Mostrar solamente lo que entrega el sector"
-                  disabled
-                >
-                  Entrega
-                </button>
-              </div>
-              <svg
-                class="connections"
-                id="connections"
-                aria-hidden="true"
-                focusable="false"
-              ></svg>
-              <div class="flow-labels" id="flow-labels" aria-hidden="true"></div>
-              <div class="departments" id="departments"></div>
-              <p class="map-prompt" id="map-prompt">
-                <span aria-hidden="true">↗</span>
-                Seleccioná un sector para explorar sus conexiones
-              </p>
-            </div>
-          </div>
-
-          <p class="keyboard-help">
-            <strong>Teclado:</strong> ← y → recorren sectores · Enter selecciona ·
-            Esc restablece · P activa el modo presentación
-          </p>
-        </section>
-
-        <aside class="info-panel" id="info-panel" tabindex="-1">
-          <button
-            class="info-toggle"
-            id="info-toggle"
-            type="button"
-            aria-controls="info-content"
-            aria-expanded="true"
-            aria-label="Cerrar panel informativo"
-            title="Cerrar panel informativo"
-          >
-            <span aria-hidden="true">»</span>
-          </button>
-          <div id="info-content" aria-live="polite"></div>
-        </aside>
-      </main>
+      <div
+        class="presentacion-progreso"
+        id="presentacion-progreso"
+        aria-live="polite"
+        hidden
+      >
+        <span
+          class="presentacion-contador"
+          id="presentacion-contador"
+        ></span>
+        <span
+          class="presentacion-pasos"
+          id="presentacion-pasos"
+          aria-label="Progreso dentro de la diapositiva"
+        ></span>
+      </div>
     </div>
 
-    <script src="js/departments.js"></script>
-    <script src="js/resources.js"></script>
-    <script src="js/flows.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/nucleo/espacio-nombres.js"></script>
+    <script src="js/nucleo/registro.js"></script>
+    <script src="js/nucleo/enrutador.js"></script>
+    <script src="js/nucleo/pasos.js"></script>
+    <script src="js/nucleo/modo-presentacion.js"></script>
+    <script src="js/nucleo/teclado.js"></script>
+    <script src="js/tipos/portada.js"></script>
+    <script src="js/tipos/contenido.js"></script>
+    <script src="js/diapositivas/interconexiones/datos.js"></script>
+    <script src="js/diapositivas/interconexiones/vista.js"></script>
+    <script src="guion.js"></script>
+    <script src="js/nucleo/marco.js"></script>
   </body>
 </html>

@@ -1,36 +1,160 @@
 (function () {
   "use strict";
 
+  const datos =
+    Presentacion.diapositivas.interconexiones &&
+    Presentacion.diapositivas.interconexiones.datos;
+  const DEPARTMENTS = datos.sectores;
+  const RESOURCES = datos.recursos;
+  const FLOWS = datos.flujos;
+  const FLOW_GROUPS = datos.gruposFlujo;
   const SVG_NS = "http://www.w3.org/2000/svg";
   const SIDES = new Set(["top", "right", "bottom", "left"]);
   const FLOW_MODES = new Set(["all", "incoming", "outgoing"]);
   const departmentIds = Object.keys(DEPARTMENTS);
-  const flowGroups =
-    typeof FLOW_GROUPS === "undefined" ? {} : FLOW_GROUPS;
-  const elements = {
-    stage: document.getElementById("map-stage"),
-    viewport: document.getElementById("map-viewport"),
-    svg: document.getElementById("connections"),
-    labels: document.getElementById("flow-labels"),
-    departments: document.getElementById("departments"),
-    flowFilterButtons: Array.from(
-      document.querySelectorAll("[data-flow-mode]")
-    ),
-    prompt: document.getElementById("map-prompt"),
-    status: document.getElementById("map-status"),
-    presentation: document.getElementById("presentation-button"),
-    reset: document.getElementById("reset-button"),
-    workspace: document.querySelector(".workspace"),
-    infoPanel: document.getElementById("info-panel"),
-    infoToggle: document.getElementById("info-toggle"),
-    info: document.getElementById("info-content")
-  };
+  const flowGroups = FLOW_GROUPS || {};
 
+  let root = null;
+  let context = null;
+  let elements = null;
+  let departmentNodes = new Map();
+  let cleanups = [];
   let selectedDepartment = null;
   let flowMode = "all";
   let isInfoPanelOpen = true;
-  let isPresentationMode = false;
   let redrawTimer = null;
+  let redrawFrame = null;
+  let resizeObserver = null;
+
+  function listen(node, eventName, handler) {
+    node.addEventListener(eventName, handler);
+    cleanups.push(function () {
+      node.removeEventListener(eventName, handler);
+    });
+  }
+
+  function createStructure(targetRoot, slideContext) {
+    const theme = document.createElement("section");
+    const resetButton = document.createElement("button");
+
+    theme.className = "tema-interconexiones";
+    theme.innerHTML = `
+      <div class="workspace">
+        <section class="map-card" aria-labelledby="map-title">
+          <div class="map-card__header">
+            <div>
+              <h2 id="map-title">Mapa de relaciones</h2>
+              <p id="map-status" aria-live="polite">Seleccioná un sector</p>
+            </div>
+            <div class="map-key" aria-label="Leyenda">
+              <span><i class="key-line" aria-hidden="true"></i> Origen</span>
+              <span><i class="key-arrow" aria-hidden="true">→</i> Destino</span>
+            </div>
+          </div>
+
+          <div class="map-viewport" id="map-viewport">
+            <div class="map-stage" id="map-stage">
+              <div
+                class="flow-filter"
+                id="flow-filter"
+                role="group"
+                aria-label="Filtrar conexiones del sector seleccionado"
+              >
+                <button
+                  class="flow-filter__button is-active"
+                  type="button"
+                  data-flow-mode="all"
+                  aria-pressed="true"
+                  aria-label="Mostrar todas las conexiones del sector"
+                  disabled
+                >
+                  Todas
+                </button>
+                <button
+                  class="flow-filter__button"
+                  type="button"
+                  data-flow-mode="incoming"
+                  aria-pressed="false"
+                  aria-label="Mostrar solamente lo que recibe el sector"
+                  disabled
+                >
+                  Recibe
+                </button>
+                <button
+                  class="flow-filter__button"
+                  type="button"
+                  data-flow-mode="outgoing"
+                  aria-pressed="false"
+                  aria-label="Mostrar solamente lo que entrega el sector"
+                  disabled
+                >
+                  Entrega
+                </button>
+              </div>
+              <svg
+                class="connections"
+                id="connections"
+                aria-hidden="true"
+                focusable="false"
+              ></svg>
+              <div class="flow-labels" id="flow-labels" aria-hidden="true"></div>
+              <div class="departments" id="departments"></div>
+              <p class="map-prompt" id="map-prompt">
+                <span aria-hidden="true">↗</span>
+                Seleccioná un sector para explorar sus conexiones
+              </p>
+            </div>
+          </div>
+
+          <p class="keyboard-help">
+            <strong>Teclado:</strong> ← y → recorren sectores · Enter selecciona ·
+            AvPág y RePág avanzan el guion · M abre el índice · P activa el modo
+            presentación
+          </p>
+        </section>
+
+        <aside class="info-panel" id="info-panel" tabindex="-1">
+          <button
+            class="info-toggle"
+            id="info-toggle"
+            type="button"
+            aria-controls="info-content"
+            aria-expanded="true"
+            aria-label="Cerrar panel informativo"
+            title="Cerrar panel informativo"
+          >
+            <span aria-hidden="true">»</span>
+          </button>
+          <div id="info-content" aria-live="polite"></div>
+        </aside>
+      </div>
+    `;
+
+    resetButton.className = "presentacion-control";
+    resetButton.type = "button";
+    resetButton.innerHTML = '<span aria-hidden="true">↺</span> Restablecer mapa';
+    slideContext.establecerAcciones([resetButton]);
+    targetRoot.appendChild(theme);
+
+    root = theme;
+    elements = {
+      stage: root.querySelector("#map-stage"),
+      viewport: root.querySelector("#map-viewport"),
+      svg: root.querySelector("#connections"),
+      labels: root.querySelector("#flow-labels"),
+      departments: root.querySelector("#departments"),
+      flowFilterButtons: Array.from(
+        root.querySelectorAll("[data-flow-mode]")
+      ),
+      prompt: root.querySelector("#map-prompt"),
+      status: root.querySelector("#map-status"),
+      reset: resetButton,
+      workspace: root.querySelector(".workspace"),
+      infoPanel: root.querySelector("#info-panel"),
+      infoToggle: root.querySelector("#info-toggle"),
+      info: root.querySelector("#info-content")
+    };
+  }
 
   function isValidPercentagePoint(point) {
     return (
@@ -371,12 +495,10 @@
         button.appendChild(count);
       }
 
-      button.addEventListener("click", function () {
+      listen(button, "click", function () {
         selectDepartment(id);
       });
-      button.addEventListener("keydown", function (event) {
-        handleDepartmentKeydown(event, index);
-      });
+      departmentNodes.set(id, button);
       fragment.appendChild(button);
     });
 
@@ -392,14 +514,19 @@
     const movement = event.key === "ArrowRight" ? 1 : -1;
     const nextIndex =
       (index + movement + departmentIds.length) % departmentIds.length;
-    document.getElementById("department-" + departmentIds[nextIndex]).focus();
+    const nextNode = departmentNodes.get(departmentIds[nextIndex]);
+    if (nextNode) {
+      nextNode.focus();
+    }
   }
 
   function getDepartmentBox(id) {
     const stageBox = elements.stage.getBoundingClientRect();
-    const nodeBox = document
-      .getElementById("department-" + id)
-      .getBoundingClientRect();
+    const node = departmentNodes.get(id);
+    if (!node) {
+      throw new Error('No se encontró el sector "' + id + '" dentro del mapa.');
+    }
+    const nodeBox = node.getBoundingClientRect();
 
     return {
       x: nodeBox.left - stageBox.left + nodeBox.width / 2,
@@ -894,7 +1021,10 @@
       : new Set();
 
     departmentIds.forEach(function (id) {
-      const node = document.getElementById("department-" + id);
+      const node = departmentNodes.get(id);
+      if (!node) {
+        return;
+      }
       node.classList.remove("is-selected", "is-related", "is-muted");
       node.setAttribute("aria-pressed", id === selectedDepartment ? "true" : "false");
 
@@ -1156,8 +1286,17 @@
 
   function scheduleConnectionRender() {
     window.clearTimeout(redrawTimer);
-    window.requestAnimationFrame(renderConnections);
-    redrawTimer = window.setTimeout(renderConnections, 310);
+    if (redrawFrame !== null) {
+      window.cancelAnimationFrame(redrawFrame);
+    }
+    redrawFrame = window.requestAnimationFrame(function () {
+      redrawFrame = null;
+      renderConnections();
+    });
+    redrawTimer = window.setTimeout(function () {
+      redrawTimer = null;
+      renderConnections();
+    }, 310);
   }
 
   function selectDepartment(id) {
@@ -1211,39 +1350,6 @@
     updateInfoPanelState();
   }
 
-  function updatePresentationMode() {
-    const label = isPresentationMode
-      ? "Salir de presentación"
-      : "Modo presentación";
-    const accessibleLabel = isPresentationMode
-      ? "Salir del modo presentación"
-      : "Activar modo presentación";
-
-    document.body.classList.toggle(
-      "is-presentation",
-      isPresentationMode
-    );
-    elements.presentation.setAttribute(
-      "aria-pressed",
-      isPresentationMode ? "true" : "false"
-    );
-    elements.presentation.setAttribute(
-      "aria-label",
-      accessibleLabel
-    );
-    elements.presentation.title =
-      accessibleLabel + " (P)";
-    elements.presentation.querySelector(
-      ".control-button__label"
-    ).textContent = label;
-    scheduleConnectionRender();
-  }
-
-  function togglePresentationMode() {
-    isPresentationMode = !isPresentationMode;
-    updatePresentationMode();
-  }
-
   function renderDataErrors(errors) {
     const box = document.createElement("div");
     const title = document.createElement("strong");
@@ -1260,7 +1366,18 @@
     elements.info.replaceChildren(box);
   }
 
-  function initialize() {
+  function mount(targetRoot, slideContext) {
+    context = slideContext;
+    selectedDepartment = null;
+    flowMode = "all";
+    isInfoPanelOpen = true;
+    redrawTimer = null;
+    redrawFrame = null;
+    resizeObserver = null;
+    departmentNodes = new Map();
+    cleanups = [];
+
+    createStructure(targetRoot, slideContext);
     const errors = validateData();
     if (errors.length) {
       renderDataErrors(errors);
@@ -1273,64 +1390,103 @@
     updateTextState();
     renderInfo();
     updateInfoPanelState();
-    updatePresentationMode();
     renderConnections();
 
-    elements.presentation.addEventListener(
-      "click",
-      togglePresentationMode
-    );
     elements.flowFilterButtons.forEach(function (button) {
-      button.addEventListener("click", function () {
+      listen(button, "click", function () {
         setFlowMode(button.dataset.flowMode);
       });
     });
-    elements.reset.addEventListener("click", resetMap);
-    elements.infoToggle.addEventListener("click", toggleInfoPanel);
-    elements.infoPanel.addEventListener("focus", function () {
+    listen(elements.reset, "click", resetMap);
+    listen(elements.infoToggle, "click", toggleInfoPanel);
+    listen(elements.infoPanel, "focus", function () {
       if (!isInfoPanelOpen) {
         isInfoPanelOpen = true;
         updateInfoPanelState();
       }
     });
-    window.addEventListener("keydown", function (event) {
-      const target = event.target;
-      const isEditable =
-        target &&
-        ((typeof target.matches === "function" &&
-          target.matches("input, textarea, select")) ||
-          target.isContentEditable);
-
-      if (
-        event.key.toLowerCase() === "p" &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey &&
-        !isEditable
-      ) {
-        event.preventDefault();
-        togglePresentationMode();
-        return;
-      }
-      if (event.key === "Escape") {
-        if (isPresentationMode) {
-          isPresentationMode = false;
-          updatePresentationMode();
-          elements.presentation.focus();
-          return;
-        }
-        resetMap();
-        elements.reset.focus();
-      }
-    });
 
     if ("ResizeObserver" in window) {
-      const resizeObserver = new ResizeObserver(scheduleConnectionRender);
+      resizeObserver = new ResizeObserver(scheduleConnectionRender);
       resizeObserver.observe(elements.stage);
     } else {
-      window.addEventListener("resize", scheduleConnectionRender);
+      listen(window, "resize", scheduleConnectionRender);
     }
   }
 
-  initialize();
+  function unmount() {
+    window.clearTimeout(redrawTimer);
+    redrawTimer = null;
+    if (redrawFrame !== null) {
+      window.cancelAnimationFrame(redrawFrame);
+      redrawFrame = null;
+    }
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
+    cleanups.forEach(function (cleanup) {
+      cleanup();
+    });
+    cleanups = [];
+    departmentNodes.clear();
+    departmentNodes = new Map();
+    if (root && root.parentNode) {
+      root.parentNode.removeChild(root);
+    }
+    root = null;
+    context = null;
+    elements = null;
+    selectedDepartment = null;
+    flowMode = "all";
+    isInfoPanelOpen = true;
+  }
+
+  function handleKey(event) {
+    if (
+      event.key !== "ArrowRight" &&
+      event.key !== "ArrowLeft"
+    ) {
+      return false;
+    }
+    const target =
+      event.target &&
+      typeof event.target.closest === "function" &&
+      event.target.closest("[data-department-id]");
+    if (!target || !root || !root.contains(target)) {
+      return false;
+    }
+    const index = departmentIds.indexOf(target.dataset.departmentId);
+    if (index < 0) {
+      return false;
+    }
+    handleDepartmentKeydown(event, index);
+    return true;
+  }
+
+  function goToStep(number) {
+    if (![0, 1, 2].includes(number)) {
+      throw new Error("El paso solicitado no existe en Interconexiones.");
+    }
+
+    isInfoPanelOpen = true;
+    updateInfoPanelState();
+    resetMap();
+
+    if (number === 1) {
+      selectDepartment("direccion");
+    } else if (number === 2) {
+      selectDepartment("tecnologia");
+    }
+  }
+
+  Presentacion.registrarDiapositiva("interconexiones", {
+    montar: mount,
+    desmontar: unmount,
+    cantidadPasos: function () {
+      return 2;
+    },
+    irAPaso: goToStep,
+    manejarTecla: handleKey
+  });
 })();
